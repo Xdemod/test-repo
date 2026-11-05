@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ระบบค้นหาและบันทึกหนังสือ/สื่อการเรียน</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #1c2a44;
+    --muted: #5d6b82;
+    --paper: #f4f6fa;
+    --card: #ffffff;
+    --line: #d9dfea;
+    --todo: #8b95a8;
+    --reading: #d98a00;
+    --done: #1f8a70;
+    --focus: #2f5bd8;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Noto Sans Thai", "Tahoma", sans-serif;
+    color: var(--ink);
+    background: var(--paper);
+    line-height: 1.6;
+  }
+  .layout { display: grid; grid-template-columns: 250px 1fr; min-height: 100vh; }
+
+  /* เมนูหลัก (แถบด้านซ้าย) */
+  .menu { background: var(--ink); color: #fff; padding: 24px 16px; }
+  .menu h1 { font-size: 1.05rem; line-height: 1.4; margin: 0 8px 24px; font-weight: 700; }
+  .menu button {
+    display: flex; justify-content: space-between; align-items: center;
+    width: 100%; padding: 10px 12px; margin-bottom: 4px;
+    background: transparent; color: #c9d3e6; border: 0; border-radius: 8px;
+    font: inherit; cursor: pointer; text-align: left;
+  }
+  .menu button:hover { background: rgba(255,255,255,.08); }
+  .menu button[aria-current="true"] { background: #fff; color: var(--ink); font-weight: 700; }
+  .menu .count { font-size: .85rem; opacity: .8; }
+
+  main { padding: 28px 32px; max-width: 900px; width: 100%; }
+  h2 { margin: 0 0 4px; font-size: 1.5rem; }
+  .sub { margin: 0 0 20px; color: var(--muted); }
+
+  .search { display: block; width: 100%; padding: 12px 14px; font: inherit;
+    border: 1px solid var(--line); border-radius: 8px; background: var(--card); }
+
+  /* ฟอร์มเพิ่มรายการ */
+  form { display: grid; grid-template-columns: 1fr 1fr 150px; gap: 10px;
+    background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+    padding: 16px; margin: 16px 0 24px; }
+  form .wide { grid-column: 1 / -1; }
+  label { display: block; font-size: .85rem; color: var(--muted); margin-bottom: 2px; }
+  input, select, textarea { width: 100%; padding: 9px 10px; font: inherit; color: var(--ink);
+    border: 1px solid var(--line); border-radius: 6px; background: #fff; }
+  .primary { grid-column: 1 / -1; justify-self: start; padding: 10px 20px; font: inherit; font-weight: 700;
+    color: #fff; background: var(--ink); border: 0; border-radius: 8px; cursor: pointer; }
+  .primary:hover { background: #2b3d63; }
+  :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+
+  /* รายการหนังสือ: แถบสีด้านซ้ายเหมือนสันหนังสือ */
+  ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+  li { background: var(--card); border: 1px solid var(--line); border-left: 8px solid var(--todo);
+    border-radius: 8px; padding: 12px 14px; display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; }
+  li[data-status="reading"] { border-left-color: var(--reading); }
+  li[data-status="done"] { border-left-color: var(--done); }
+  li .title { font-weight: 700; }
+  li .subject { color: var(--muted); font-size: .9rem; }
+  li .note { grid-column: 1 / -1; font-size: .9rem; color: var(--ink); }
+  li .actions { display: flex; gap: 8px; align-items: start; }
+  li select { width: auto; padding: 5px 8px; }
+  li .del { padding: 5px 10px; font: inherit; color: #b3261e; background: #fff;
+    border: 1px solid var(--line); border-radius: 6px; cursor: pointer; }
+  .empty { padding: 28px; text-align: center; color: var(--muted);
+    border: 1px dashed var(--line); border-radius: 8px; }
+
+  @media (max-width: 760px) {
+    .layout { grid-template-columns: 1fr; }
+    .menu { padding: 16px; }
+    .menu nav { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+    main { padding: 20px 16px; }
+    form { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+
+  <aside class="menu">
+    <h1>ระบบค้นหาและบันทึก<br>หนังสือ/สื่อการเรียน</h1>
+    <nav id="nav" aria-label="เมนูหลัก">
+      <button data-filter="all" aria-current="true">ทั้งหมด <span class="count" id="c-all">0</span></button>
+      <button data-filter="todo">ยังไม่อ่าน <span class="count" id="c-todo">0</span></button>
+      <button data-filter="reading">กำลังอ่าน <span class="count" id="c-reading">0</span></button>
+      <button data-filter="done">อ่านแล้ว <span class="count" id="c-done">0</span></button>
+    </nav>
+  </aside>
+
+  <main>
+    <h2 id="heading">รายการทั้งหมด</h2>
+    <p class="sub">เก็บหนังสือและเอกสารเรียนไว้ในที่เดียว</p>
+
+    <label for="q">ค้นหาตามชื่อวิชาหรือชื่อหนังสือ</label>
+    <input class="search" id="q" type="search" placeholder="เช่น คณิตศาสตร์">
+
+    <form id="add">
+      <div>
+        <label for="title">ชื่อหนังสือ/เอกสาร</label>
+        <input id="title" required>
+      </div>
+      <div>
+        <label for="subject">ชื่อวิชา</label>
+        <input id="subject" required>
+      </div>
+      <div>
+        <label for="status">สถานะ</label>
+        <select id="status">
+          <option value="todo">ยังไม่อ่าน</option>
+          <option value="reading">กำลังอ่าน</option>
+          <option value="done">อ่านแล้ว</option>
+        </select>
+      </div>
+      <div class="wide">
+        <label for="note">โน้ตสั้นๆ (ไม่บังคับ)</label>
+        <input id="note" maxlength="120">
+      </div>
+      <button class="primary" type="submit">เพิ่มรายการ</button>
+    </form>
+
+    <ul id="list" aria-live="polite"></ul>
+  </main>
+</div>
+
+<script>
+  var LABEL = { todo: "ยังไม่อ่าน", reading: "กำลังอ่าน", done: "อ่านแล้ว" };
+  var HEAD = { all: "รายการทั้งหมด", todo: "ยังไม่อ่าน", reading: "กำลังอ่าน", done: "อ่านแล้ว" };
+  var items = [];
+  var filter = "all";
+
+  function load() {
+    try {
+      var raw = localStorage.getItem("books");
+      if (raw) { items = JSON.parse(raw); return; }
+    } catch (e) {}
+    items = [
+      { id: 1, title: "แคลคูลัส 1", subject: "คณิตศาสตร์", status: "reading", note: "อ่านถึงบทที่ 3" },
+      { id: 2, title: "สรุปการเขียนโปรแกรมเบื้องต้น", subject: "การเขียนโปรแกรม", status: "todo", note: "" }
+    ];
+  }
+  function save() {
+    try { localStorage.setItem("books", JSON.stringify(items)); } catch (e) {}
+  }
+
+  function render() {
+    var q = document.getElementById("q").value.trim().toLowerCase();
+    var list = document.getElementById("list");
+    list.textContent = "";
+
+    ["todo", "reading", "done"].forEach(function (s) {
+      document.getElementById("c-" + s).textContent = items.filter(function (i) { return i.status === s; }).length;
+    });
+    document.getElementById("c-all").textContent = items.length;
+    document.getElementById("heading").textContent = HEAD[filter];
+
+    var shown = items.filter(function (i) {
+      var okStatus = filter === "all" || i.status === filter;
+      var okText = !q || i.title.toLowerCase().indexOf(q) > -1 || i.subject.toLowerCase().indexOf(q) > -1;
+      return okStatus && okText;
+    });
+
+    if (!shown.length) {
+      var e = document.createElement("div");
+      e.className = "empty";
+      e.textContent = items.length ? "ไม่พบรายการที่ตรงกับการค้นหา" : "ยังไม่มีรายการ เพิ่มเล่มแรกได้จากฟอร์มด้านบน";
+      list.appendChild(e);
+      return;
+    }
+
+    shown.forEach(function (it) {
+      var li = document.createElement("li");
+      li.dataset.status = it.status;
+
+      var info = document.createElement("div");
+      var t = document.createElement("div"); t.className = "title"; t.textContent = it.title;
+      var s = document.createElement("div"); s.className = "subject"; s.textContent = "วิชา: " + it.subject;
+      info.appendChild(t); info.appendChild(s);
+
+      var act = document.createElement("div"); act.className = "actions";
+      var sel = document.createElement("select");
+      sel.setAttribute("aria-label", "สถานะของ " + it.title);
+      Object.keys(LABEL).forEach(function (k) {
+        var o = document.createElement("option");
+        o.value = k; o.textContent = LABEL[k]; if (k === it.status) o.selected = true;
+        sel.appendChild(o);
+      });
+      sel.onchange = function () { it.status = sel.value; save(); render(); };
+      var del = document.createElement("button");
+      del.className = "del"; del.textContent = "ลบ";
+      del.onclick = function () { items = items.filter(function (x) { return x.id !== it.id; }); save(); render(); };
+      act.appendChild(sel); act.appendChild(del);
+
+      li.appendChild(info); li.appendChild(act);
+      if (it.note) { var n = document.createElement("div"); n.className = "note"; n.textContent = "โน้ต: " + it.note; li.appendChild(n); }
+      list.appendChild(li);
+    });
+  }
+
+  document.getElementById("nav").addEventListener("click", function (e) {
+    var b = e.target.closest("button"); if (!b) return;
+    filter = b.dataset.filter;
+    document.querySelectorAll("#nav button").forEach(function (x) {
+      x.setAttribute("aria-current", x === b ? "true" : "false");
+    });
+    render();
+  });
+  document.getElementById("q").addEventListener("input", render);
+  document.getElementById("add").addEventListener("submit", function (e) {
+    e.preventDefault();
+    items.unshift({
+      id: Date.now(),
+      title: document.getElementById("title").value.trim(),
+      subject: document.getElementById("subject").value.trim(),
+      status: document.getElementById("status").value,
+      note: document.getElementById("note").value.trim()
+    });
+    save(); e.target.reset(); render();
+  });
+
+  load(); render();
+</script>
+</body>
+</html>
