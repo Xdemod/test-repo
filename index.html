@@ -1,235 +1,911 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ระบบค้นหาและบันทึกหนังสือ/สื่อการเรียน</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;700&display=swap" rel="stylesheet">
-<style>
-  :root {
-    --ink: #1c2a44;
-    --muted: #5d6b82;
-    --paper: #f4f6fa;
-    --card: #ffffff;
-    --line: #d9dfea;
-    --todo: #8b95a8;
-    --reading: #d98a00;
-    --done: #1f8a70;
-    --focus: #2f5bd8;
-  }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0;
-    font-family: "Noto Sans Thai", "Tahoma", sans-serif;
-    color: var(--ink);
-    background: var(--paper);
-    line-height: 1.6;
-  }
-  .layout { display: grid; grid-template-columns: 250px 1fr; min-height: 100vh; }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>BookNest — ระบบค้นหาและบันทึกหนังสือ</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Prompt & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
 
-  /* เมนูหลัก (แถบด้านซ้าย) */
-  .menu { background: var(--ink); color: #fff; padding: 24px 16px; }
-  .menu h1 { font-size: 1.05rem; line-height: 1.4; margin: 0 8px 24px; font-weight: 700; }
-  .menu button {
-    display: flex; justify-content: space-between; align-items: center;
-    width: 100%; padding: 10px 12px; margin-bottom: 4px;
-    background: transparent; color: #c9d3e6; border: 0; border-radius: 8px;
-    font: inherit; cursor: pointer; text-align: left;
-  }
-  .menu button:hover { background: rgba(255,255,255,.08); }
-  .menu button[aria-current="true"] { background: #fff; color: var(--ink); font-weight: 700; }
-  .menu .count { font-size: .85rem; opacity: .8; }
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Prompt', 'Inter', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50: '#F5F3FF',
+              100: '#EDE9FE',
+              200: '#DDD6FE',
+              500: '#6366F1',
+              600: '#4F46E5',
+              700: '#4338CA',
+              800: '#3730A3',
+              900: '#2E1065',
+              deep: '#1E0B4B'
+            }
+          },
+          boxShadow: {
+            'phone': '0 25px 60px -15px rgba(30, 11, 75, 0.35)',
+            'card': '0 4px 18px 0 rgba(0, 0, 0, 0.05)',
+            'float': '0 10px 25px -5px rgba(79, 70, 229, 0.45)'
+          }
+        }
+      }
+    }
+  </script>
 
-  main { padding: 28px 32px; max-width: 900px; width: 100%; }
-  h2 { margin: 0 0 4px; font-size: 1.5rem; }
-  .sub { margin: 0 0 20px; color: var(--muted); }
-
-  .search { display: block; width: 100%; padding: 12px 14px; font: inherit;
-    border: 1px solid var(--line); border-radius: 8px; background: var(--card); }
-
-  /* ฟอร์มเพิ่มรายการ */
-  form { display: grid; grid-template-columns: 1fr 1fr 150px; gap: 10px;
-    background: var(--card); border: 1px solid var(--line); border-radius: 10px;
-    padding: 16px; margin: 16px 0 24px; }
-  form .wide { grid-column: 1 / -1; }
-  label { display: block; font-size: .85rem; color: var(--muted); margin-bottom: 2px; }
-  input, select, textarea { width: 100%; padding: 9px 10px; font: inherit; color: var(--ink);
-    border: 1px solid var(--line); border-radius: 6px; background: #fff; }
-  .primary { grid-column: 1 / -1; justify-self: start; padding: 10px 20px; font: inherit; font-weight: 700;
-    color: #fff; background: var(--ink); border: 0; border-radius: 8px; cursor: pointer; }
-  .primary:hover { background: #2b3d63; }
-  :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
-
-  /* รายการหนังสือ: แถบสีด้านซ้ายเหมือนสันหนังสือ */
-  ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
-  li { background: var(--card); border: 1px solid var(--line); border-left: 8px solid var(--todo);
-    border-radius: 8px; padding: 12px 14px; display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; }
-  li[data-status="reading"] { border-left-color: var(--reading); }
-  li[data-status="done"] { border-left-color: var(--done); }
-  li .title { font-weight: 700; }
-  li .subject { color: var(--muted); font-size: .9rem; }
-  li .note { grid-column: 1 / -1; font-size: .9rem; color: var(--ink); }
-  li .actions { display: flex; gap: 8px; align-items: start; }
-  li select { width: auto; padding: 5px 8px; }
-  li .del { padding: 5px 10px; font: inherit; color: #b3261e; background: #fff;
-    border: 1px solid var(--line); border-radius: 6px; cursor: pointer; }
-  .empty { padding: 28px; text-align: center; color: var(--muted);
-    border: 1px dashed var(--line); border-radius: 8px; }
-
-  @media (max-width: 760px) {
-    .layout { grid-template-columns: 1fr; }
-    .menu { padding: 16px; }
-    .menu nav { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
-    main { padding: 20px 16px; }
-    form { grid-template-columns: 1fr; }
-  }
-</style>
-</head>
-<body>
-<div class="layout">
-
-  <aside class="menu">
-    <h1>ระบบค้นหาและบันทึก<br>หนังสือ/สื่อการเรียน</h1>
-    <nav id="nav" aria-label="เมนูหลัก">
-      <button data-filter="all" aria-current="true">ทั้งหมด <span class="count" id="c-all">0</span></button>
-      <button data-filter="todo">ยังไม่อ่าน <span class="count" id="c-todo">0</span></button>
-      <button data-filter="reading">กำลังอ่าน <span class="count" id="c-reading">0</span></button>
-      <button data-filter="done">อ่านแล้ว <span class="count" id="c-done">0</span></button>
-    </nav>
-  </aside>
-
-  <main>
-    <h2 id="heading">รายการทั้งหมด</h2>
-    <p class="sub">เก็บหนังสือและเอกสารเรียนไว้ในที่เดียว</p>
-
-    <label for="q">ค้นหาตามชื่อวิชาหรือชื่อหนังสือ</label>
-    <input class="search" id="q" type="search" placeholder="เช่น คณิตศาสตร์">
-
-    <form id="add">
-      <div>
-        <label for="title">ชื่อหนังสือ/เอกสาร</label>
-        <input id="title" required>
-      </div>
-      <div>
-        <label for="subject">ชื่อวิชา</label>
-        <input id="subject" required>
-      </div>
-      <div>
-        <label for="status">สถานะ</label>
-        <select id="status">
-          <option value="todo">ยังไม่อ่าน</option>
-          <option value="reading">กำลังอ่าน</option>
-          <option value="done">อ่านแล้ว</option>
-        </select>
-      </div>
-      <div class="wide">
-        <label for="note">โน้ตสั้นๆ (ไม่บังคับ)</label>
-        <input id="note" maxlength="120">
-      </div>
-      <button class="primary" type="submit">เพิ่มรายการ</button>
-    </form>
-
-    <ul id="list" aria-live="polite"></ul>
-  </main>
-</div>
-
-<script>
-  var LABEL = { todo: "ยังไม่อ่าน", reading: "กำลังอ่าน", done: "อ่านแล้ว" };
-  var HEAD = { all: "รายการทั้งหมด", todo: "ยังไม่อ่าน", reading: "กำลังอ่าน", done: "อ่านแล้ว" };
-  var items = [];
-  var filter = "all";
-
-  function load() {
-    try {
-      var raw = localStorage.getItem("books");
-      if (raw) { items = JSON.parse(raw); return; }
-    } catch (e) {}
-    items = [
-      { id: 1, title: "แคลคูลัส 1", subject: "คณิตศาสตร์", status: "reading", note: "อ่านถึงบทที่ 3" },
-      { id: 2, title: "สรุปการเขียนโปรแกรมเบื้องต้น", subject: "การเขียนโปรแกรม", status: "todo", note: "" }
-    ];
-  }
-  function save() {
-    try { localStorage.setItem("books", JSON.stringify(items)); } catch (e) {}
-  }
-
-  function render() {
-    var q = document.getElementById("q").value.trim().toLowerCase();
-    var list = document.getElementById("list");
-    list.textContent = "";
-
-    ["todo", "reading", "done"].forEach(function (s) {
-      document.getElementById("c-" + s).textContent = items.filter(function (i) { return i.status === s; }).length;
-    });
-    document.getElementById("c-all").textContent = items.length;
-    document.getElementById("heading").textContent = HEAD[filter];
-
-    var shown = items.filter(function (i) {
-      var okStatus = filter === "all" || i.status === filter;
-      var okText = !q || i.title.toLowerCase().indexOf(q) > -1 || i.subject.toLowerCase().indexOf(q) > -1;
-      return okStatus && okText;
-    });
-
-    if (!shown.length) {
-      var e = document.createElement("div");
-      e.className = "empty";
-      e.textContent = items.length ? "ไม่พบรายการที่ตรงกับการค้นหา" : "ยังไม่มีรายการ เพิ่มเล่มแรกได้จากฟอร์มด้านบน";
-      list.appendChild(e);
-      return;
+  <style>
+    /* Custom Scrollbar hide for mobile feel */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    
+    /* Device frame styling */
+    .ios-status-bar {
+      height: 44px;
+    }
+    .ios-home-indicator {
+      width: 134px;
+      height: 5px;
+      border-radius: 100px;
+      background-color: #cbd5e1;
     }
 
-    shown.forEach(function (it) {
-      var li = document.createElement("li");
-      li.dataset.status = it.status;
+    /* Smooth tab switching animation */
+    .screen-fade {
+      animation: fadeIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body class="bg-slate-900 min-h-screen flex items-center justify-center p-0 sm:p-4 text-slate-800 antialiased font-sans selection:bg-brand-500 selection:text-white">
 
-      var info = document.createElement("div");
-      var t = document.createElement("div"); t.className = "title"; t.textContent = it.title;
-      var s = document.createElement("div"); s.className = "subject"; s.textContent = "วิชา: " + it.subject;
-      info.appendChild(t); info.appendChild(s);
+  <!-- Main Mobile Mockup Frame -->
+  <div class="relative w-full sm:max-w-[414px] h-[100dvh] sm:h-[860px] bg-slate-50 sm:rounded-[44px] shadow-phone overflow-hidden border-0 sm:border-[8px] sm:border-slate-800 flex flex-col">
+    
+    <!-- Toast Notification Message Box (Never Alert) -->
+    <div id="toast" class="absolute top-12 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 opacity-0 pointer-events-none transform -translate-y-4">
+      <div class="bg-slate-900/90 backdrop-blur-md text-white text-xs px-4 py-2.5 rounded-full shadow-lg flex items-center gap-2 border border-white/10 font-medium">
+        <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-400"></i>
+        <span id="toast-message">บันทึกสำเร็จ</span>
+      </div>
+    </div>
 
-      var act = document.createElement("div"); act.className = "actions";
-      var sel = document.createElement("select");
-      sel.setAttribute("aria-label", "สถานะของ " + it.title);
-      Object.keys(LABEL).forEach(function (k) {
-        var o = document.createElement("option");
-        o.value = k; o.textContent = LABEL[k]; if (k === it.status) o.selected = true;
-        sel.appendChild(o);
+    <!-- Screen 01: Home (หน้าแรก) -->
+    <section id="screen-home" class="screen flex-1 flex flex-col overflow-y-auto no-scrollbar screen-fade">
+      <!-- Gradient Header -->
+      <div class="bg-gradient-to-b from-brand-900 via-brand-800 to-brand-700 text-white pt-6 pb-6 px-5 rounded-b-[28px] shadow-md relative">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <span class="text-xs text-indigo-200 block font-normal">ยินดีต้อนรับกลับมา 👋</span>
+            <h1 class="text-lg font-bold tracking-tight">สวัสดี, คลังเรียนของคุณ</h1>
+          </div>
+          <button onclick="showToast('ไม่มีการแจ้งเตือนใหม่')" class="w-10 h-10 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center hover:bg-white/20 transition-colors relative">
+            <i data-lucide="bell" class="w-5 h-5 text-indigo-100"></i>
+            <span class="w-2.5 h-2.5 bg-rose-500 rounded-full absolute top-2 right-2 border-2 border-brand-900"></span>
+          </button>
+        </div>
+
+        <!-- Search Bar Shortcut -->
+        <div onclick="navigateTo('screen-search')" class="bg-white rounded-2xl p-3 shadow-inner flex items-center gap-3 cursor-pointer text-slate-400 hover:text-slate-600 transition-all">
+          <i data-lucide="search" class="w-5 h-5 text-brand-600"></i>
+          <span class="text-sm font-light">ค้นหาหนังสือ, รายวิชา...</span>
+        </div>
+      </div>
+
+      <!-- Main Content -->
+      <div class="p-5 space-y-6 flex-1 pb-24">
+        <!-- Overview Stats -->
+        <div>
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="text-base font-semibold text-slate-800">ภาพรวมของฉัน</h2>
+            <span class="text-xs text-slate-400 font-normal">อัปเดตล่าสุดวันนี้</span>
+          </div>
+          <div class="grid grid-cols-3 gap-3">
+            <!-- Total -->
+            <div class="bg-gradient-to-br from-brand-600 to-brand-800 text-white p-3.5 rounded-2xl shadow-card flex flex-col justify-between items-center text-center">
+              <span id="stat-total" class="text-2xl font-bold">0</span>
+              <span class="text-[11px] font-light text-indigo-100">ทั้งหมด</span>
+            </div>
+            <!-- Finished -->
+            <div class="bg-gradient-to-br from-emerald-500 to-teal-600 text-white p-3.5 rounded-2xl shadow-card flex flex-col justify-between items-center text-center">
+              <span id="stat-finished" class="text-2xl font-bold">0</span>
+              <span class="text-[11px] font-light text-emerald-100">อ่านแล้ว</span>
+            </div>
+            <!-- Reading -->
+            <div class="bg-gradient-to-br from-amber-500 to-orange-500 text-white p-3.5 rounded-2xl shadow-card flex flex-col justify-between items-center text-center">
+              <span id="stat-reading" class="text-2xl font-bold">0</span>
+              <span class="text-[11px] font-light text-orange-100">กำลังอ่าน</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recent Books -->
+        <div>
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="text-base font-semibold text-slate-800">รายการล่าสุด</h2>
+            <button onclick="navigateTo('screen-search')" class="text-xs text-brand-600 font-medium hover:underline">ดูทั้งหมด</button>
+          </div>
+          <div id="home-book-list" class="space-y-3">
+            <!-- Books injected by JS -->
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Screen 02: Search & Catalog (ค้นหา) -->
+    <section id="screen-search" class="screen hidden flex-1 flex flex-col overflow-y-auto no-scrollbar screen-fade">
+      <!-- Gradient Header -->
+      <div class="bg-gradient-to-b from-brand-900 via-brand-800 to-brand-700 text-white pt-6 pb-5 px-5 rounded-b-[28px] shadow-md relative">
+        <h1 class="text-lg font-bold text-center mb-4">ค้นหาหนังสือ</h1>
+        <!-- Realtime Search Input -->
+        <div class="bg-white rounded-2xl p-2.5 shadow-md flex items-center gap-3">
+          <i data-lucide="search" class="w-5 h-5 text-brand-600 ml-1"></i>
+          <input id="search-input" type="text" placeholder="ค้นหาชื่อหนังสือ หรือผู้สอน..." 
+                 class="w-full text-slate-800 placeholder-slate-400 text-sm bg-transparent focus:outline-none"
+                 oninput="filterBooks()">
+          <button id="clear-search" onclick="clearSearch()" class="hidden text-slate-400 hover:text-slate-600 p-1">
+            <i data-lucide="x" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Categories Pills -->
+      <div class="px-5 pt-4 pb-2">
+        <div class="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+          <button onclick="filterCategory('ทั้งหมด')" class="cat-pill active px-4 py-1.5 rounded-full text-xs font-medium whitespace-nowrap bg-brand-600 text-white shadow-sm transition-all">ทั้งหมด</button>
+          <button onclick="filterCategory('ไอที')" class="cat-pill px-4 py-1.5 rounded-full text-xs font-medium whitespace-nowrap bg-white text-slate-600 border border-slate-200 hover:border-brand-500 transition-all">ไอที</button>
+          <button onclick="filterCategory('ทั่วไป')" class="cat-pill px-4 py-1.5 rounded-full text-xs font-medium whitespace-nowrap bg-white text-slate-600 border border-slate-200 hover:border-brand-500 transition-all">ทั่วไป</button>
+          <button onclick="filterCategory('สอบ/เตรียมตัว')" class="cat-pill px-4 py-1.5 rounded-full text-xs font-medium whitespace-nowrap bg-white text-slate-600 border border-slate-200 hover:border-brand-500 transition-all">สอบ</button>
+          <button onclick="filterCategory('พัฒนาตนเอง')" class="cat-pill px-4 py-1.5 rounded-full text-xs font-medium whitespace-nowrap bg-white text-slate-600 border border-slate-200 hover:border-brand-500 transition-all">พัฒนาตนเอง</button>
+        </div>
+      </div>
+
+      <!-- Search Results List -->
+      <div class="p-5 flex-1 pb-24">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-sm font-semibold text-slate-700">ผลการค้นหา (<span id="search-count">0</span>)</h2>
+        </div>
+        <div id="search-results-list" class="space-y-3">
+          <!-- Dynamic Results -->
+        </div>
+      </div>
+
+      <!-- Floating Action Button: เพิ่มหนังสือ (+) -->
+      <button onclick="navigateTo('screen-add')" class="absolute bottom-20 right-5 z-20 flex items-center gap-2 bg-gradient-to-r from-brand-700 to-brand-500 hover:from-brand-800 hover:to-brand-600 text-white px-4 py-3 rounded-full shadow-float transition-all active:scale-95 group">
+        <span class="text-xs font-medium">เพิ่มหนังสือ</span>
+        <div class="w-6 h-6 rounded-full bg-white/25 flex items-center justify-center">
+          <i data-lucide="plus" class="w-4 h-4"></i>
+        </div>
+      </button>
+    </section>
+
+    <!-- Screen 03: Add Book (เพิ่มรายการใหม่) -->
+    <section id="screen-add" class="screen hidden flex-1 flex flex-col overflow-y-auto no-scrollbar screen-fade">
+      <!-- Gradient Header -->
+      <div class="bg-gradient-to-b from-brand-900 to-brand-700 text-white pt-6 pb-5 px-5 rounded-b-[28px] shadow-md flex items-center justify-between">
+        <button onclick="historyBack()" class="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors">
+          <i data-lucide="arrow-left" class="w-5 h-5"></i>
+        </button>
+        <h1 class="text-base font-bold">เพิ่มรายการใหม่</h1>
+        <div class="w-9"></div> <!-- Placeholder balance -->
+      </div>
+
+      <!-- Form Content -->
+      <div class="p-5 flex-1 pb-24 space-y-4">
+        <!-- Cover Upload / Icon Picker Box -->
+        <div onclick="selectIconTrigger()" class="w-full h-36 border-2 border-dashed border-indigo-200 hover:border-brand-500 bg-indigo-50/50 rounded-2xl flex flex-col items-center justify-center cursor-pointer transition-all p-3 text-center group">
+          <div id="cover-preview" class="w-14 h-14 rounded-2xl bg-brand-600 text-white flex items-center justify-center mb-2 shadow-md group-hover:scale-105 transition-transform">
+            <i id="cover-preview-icon" data-lucide="book" class="w-7 h-7"></i>
+          </div>
+          <span class="text-xs font-medium text-brand-700 flex items-center gap-1">
+            <i data-lucide="plus-circle" class="w-4 h-4"></i> เปลี่ยนรูปหรือไอคอนปก
+          </span>
+          <span class="text-[10px] text-slate-400 mt-0.5">แตะเพื่อเปลี่ยนไอคอนประจำวิชา</span>
+        </div>
+
+        <!-- Hidden icon selection modal/tabs (simple drawer simulation) -->
+        <div id="icon-selector" class="hidden bg-white p-3 rounded-xl border border-slate-200 grid grid-cols-6 gap-2">
+          <button type="button" onclick="chooseCoverIcon('book')" class="p-2 rounded-lg bg-indigo-50 hover:bg-brand-100 text-brand-600 flex justify-center"><i data-lucide="book" class="w-5 h-5"></i></button>
+          <button type="button" onclick="chooseCoverIcon('code-2')" class="p-2 rounded-lg bg-indigo-50 hover:bg-brand-100 text-brand-600 flex justify-center"><i data-lucide="code-2" class="w-5 h-5"></i></button>
+          <button type="button" onclick="chooseCoverIcon('database')" class="p-2 rounded-lg bg-indigo-50 hover:bg-brand-100 text-brand-600 flex justify-center"><i data-lucide="database" class="w-5 h-5"></i></button>
+          <button type="button" onclick="chooseCoverIcon('network')" class="p-2 rounded-lg bg-indigo-50 hover:bg-brand-100 text-brand-600 flex justify-center"><i data-lucide="network" class="w-5 h-5"></i></button>
+          <button type="button" onclick="chooseCoverIcon('cpu')" class="p-2 rounded-lg bg-indigo-50 hover:bg-brand-100 text-brand-600 flex justify-center"><i data-lucide="cpu" class="w-5 h-5"></i></button>
+          <button type="button" onclick="chooseCoverIcon('lightbulb')" class="p-2 rounded-lg bg-indigo-50 hover:bg-brand-100 text-brand-600 flex justify-center"><i data-lucide="lightbulb" class="w-5 h-5"></i></button>
+        </div>
+
+        <!-- Input Fields -->
+        <div class="space-y-3">
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">ชื่อหนังสือ/วิชา <span class="text-rose-500">*</span></label>
+            <input id="form-title" type="text" placeholder="เช่น การเขียนโปรแกรมเว็บเบื้องต้น" 
+                   class="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-brand-600 focus:ring-1 focus:ring-brand-600 transition-all">
+          </div>
+
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">หมวดหมู่/วิชา</label>
+            <select id="form-category" class="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-brand-600 transition-all">
+              <option value="ไอที">ไอที / คอมพิวเตอร์</option>
+              <option value="ทั่วไป">ความรู้ทั่วไป</option>
+              <option value="สอบ/เตรียมตัว">สอบ / เตรียมตัว</option>
+              <option value="พัฒนาตนเอง">พัฒนาตนเอง</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">ผู้แต่ง/ผู้สอน</label>
+            <input id="form-author" type="text" placeholder="เช่น ผศ.ดร. สมนึก จิตดี" 
+                   class="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-brand-600 transition-all">
+          </div>
+
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">วันที่เพิ่ม</label>
+            <input id="form-date" type="date" class="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-700 focus:outline-none focus:border-brand-600 transition-all">
+          </div>
+
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">บันทึกโน้ตสั้นๆ</label>
+            <textarea id="form-note" rows="2" placeholder="จดโน้ตสำคัญ เนื้อหาเป้าหมาย หรือเกร็งข้อสอบ..." 
+                      class="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-brand-600 transition-all resize-none"></textarea>
+          </div>
+        </div>
+
+        <!-- Submit Button -->
+        <button onclick="handleSaveNewBook()" class="w-full mt-4 bg-gradient-to-r from-brand-700 to-brand-600 hover:from-brand-800 hover:to-brand-700 text-white font-medium py-3 rounded-2xl shadow-md transition-all active:scale-[0.98] flex items-center justify-center gap-2">
+          <i data-lucide="check" class="w-5 h-5"></i>
+          <span>บันทึก</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- Screen 04: Book Details & Status (รายละเอียด) -->
+    <section id="screen-detail" class="screen hidden flex-1 flex flex-col overflow-y-auto no-scrollbar screen-fade">
+      <!-- Gradient Header -->
+      <div class="bg-gradient-to-b from-brand-900 to-brand-700 text-white pt-6 pb-5 px-5 rounded-b-[28px] shadow-md flex items-center justify-between">
+        <button onclick="historyBack()" class="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors">
+          <i data-lucide="arrow-left" class="w-5 h-5"></i>
+        </button>
+        <h1 class="text-base font-bold">รายละเอียด</h1>
+        <button onclick="deleteCurrentBook()" class="w-9 h-9 rounded-full bg-rose-500/20 text-rose-200 flex items-center justify-center hover:bg-rose-500/40 transition-colors" title="ลบรายการนี้">
+          <i data-lucide="trash-2" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <div class="p-5 flex-1 pb-24 space-y-5">
+        <!-- Book Header Card -->
+        <div class="bg-white rounded-2xl p-4 shadow-card border border-slate-100 flex items-start gap-4">
+          <div id="detail-icon-wrap" class="w-16 h-16 rounded-2xl bg-brand-600 text-white flex items-center justify-center shadow-md shrink-0">
+            <i id="detail-icon" data-lucide="book-open" class="w-8 h-8"></i>
+          </div>
+          <div class="flex-1 min-w-0">
+            <h2 id="detail-title" class="text-base font-bold text-slate-800 leading-snug truncate">ชื่อหนังสือ</h2>
+            <p id="detail-author" class="text-xs text-slate-500 mt-0.5">ผู้แต่ง/ผู้สอน</p>
+            <div class="flex items-center gap-2 mt-2">
+              <span id="detail-cat-badge" class="px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-brand-50 text-brand-700 border border-brand-200">หมวดหมู่</span>
+              <span id="detail-date" class="text-[10px] text-slate-400">วันที่</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Reading Status Selector -->
+        <div>
+          <label class="block text-sm font-semibold text-slate-800 mb-2">สถานะการอ่าน</label>
+          <div class="grid grid-cols-3 gap-2.5">
+            <!-- Unread -->
+            <button type="button" onclick="selectStatus('ยังไม่อ่าน')" id="btn-status-unread" 
+                    class="status-btn p-3 rounded-2xl border text-center flex flex-col items-center justify-center gap-1.5 transition-all bg-white border-slate-200 text-slate-600">
+              <span class="w-3.5 h-3.5 rounded-full bg-slate-300"></span>
+              <span class="text-xs font-medium">ยังไม่อ่าน</span>
+            </button>
+            <!-- Reading -->
+            <button type="button" onclick="selectStatus('กำลังอ่าน')" id="btn-status-reading" 
+                    class="status-btn p-3 rounded-2xl border text-center flex flex-col items-center justify-center gap-1.5 transition-all bg-white border-slate-200 text-slate-600">
+              <span class="w-3.5 h-3.5 rounded-full bg-amber-400"></span>
+              <span class="text-xs font-medium">กำลังอ่าน</span>
+            </button>
+            <!-- Finished -->
+            <button type="button" onclick="selectStatus('อ่านแล้ว')" id="btn-status-finished" 
+                    class="status-btn p-3 rounded-2xl border text-center flex flex-col items-center justify-center gap-1.5 transition-all bg-white border-slate-200 text-slate-600">
+              <span class="w-3.5 h-3.5 rounded-full bg-emerald-500"></span>
+              <span class="text-xs font-medium">อ่านแล้ว</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Note Textarea -->
+        <div>
+          <label class="block text-sm font-semibold text-slate-800 mb-2">บันทึกโน้ตสั้นๆ</label>
+          <textarea id="detail-note" rows="4" placeholder="พิมพ์บันทึกย่อเพื่อทบทวน..." 
+                    class="w-full bg-white border border-slate-200 rounded-2xl p-3.5 text-sm focus:outline-none focus:border-brand-600 focus:ring-1 focus:ring-brand-600 transition-all text-slate-700"></textarea>
+        </div>
+
+        <!-- Save Status Action Button -->
+        <button onclick="handleUpdateBookStatus()" class="w-full bg-gradient-to-r from-brand-900 to-brand-700 hover:from-brand-950 hover:to-brand-800 text-white font-medium py-3 rounded-2xl shadow-md transition-all active:scale-[0.98] flex items-center justify-center gap-2">
+          <i data-lucide="check-check" class="w-5 h-5"></i>
+          <span>บันทึกสถานะ</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- Screen 05: Profile (โปรไฟล์ผู้ใช้งาน) -->
+    <section id="screen-profile" class="screen hidden flex-1 flex flex-col overflow-y-auto no-scrollbar screen-fade">
+      <!-- Gradient Header with Avatar -->
+      <div class="bg-gradient-to-b from-brand-900 via-brand-800 to-brand-700 text-white pt-8 pb-10 px-5 rounded-b-[36px] shadow-md flex flex-col items-center text-center relative">
+        <h1 class="text-base font-bold mb-4">โปรไฟล์ของฉัน</h1>
+        
+        <!-- Avatar Wrapper -->
+        <div class="relative mb-3">
+          <div class="w-20 h-20 rounded-full bg-white/20 backdrop-blur-md p-1 border-2 border-white/40 shadow-inner flex items-center justify-center overflow-hidden">
+            <div class="w-full h-full rounded-full bg-gradient-to-tr from-brand-500 to-indigo-300 flex items-center justify-center text-white">
+              <i data-lucide="user" class="w-10 h-10"></i>
+            </div>
+          </div>
+          <span class="w-5 h-5 rounded-full bg-emerald-400 border-2 border-brand-900 absolute bottom-1 right-1 flex items-center justify-center">
+            <span class="w-2 h-2 rounded-full bg-white"></span>
+          </span>
+        </div>
+
+        <h2 class="text-lg font-bold">ชื่อผู้ใช้ (Student)</h2>
+        <p class="text-xs text-indigo-200 mt-0.5">student.booknest@uni.ac.th</p>
+        <span class="mt-2 px-3 py-0.5 rounded-full text-[11px] font-medium bg-white/15 text-indigo-100 border border-white/20">
+          สาขาวิทยาการคอมพิวเตอร์
+        </span>
+      </div>
+
+      <!-- Profile Content -->
+      <div class="p-5 flex-1 pb-24 space-y-6">
+        <!-- Stats Summary -->
+        <div>
+          <h3 class="text-sm font-semibold text-slate-800 mb-3">สถิติการอ่าน</h3>
+          <div class="grid grid-cols-3 gap-2.5 text-center">
+            <div class="bg-white p-3 rounded-2xl border border-slate-100 shadow-sm">
+              <span id="prof-finished" class="text-xl font-bold text-emerald-600 block">0</span>
+              <span class="text-[11px] text-slate-500">อ่านแล้ว</span>
+            </div>
+            <div class="bg-white p-3 rounded-2xl border border-slate-100 shadow-sm">
+              <span id="prof-reading" class="text-xl font-bold text-amber-500 block">0</span>
+              <span class="text-[11px] text-slate-500">กำลังอ่าน</span>
+            </div>
+            <div class="bg-white p-3 rounded-2xl border border-slate-100 shadow-sm">
+              <span id="prof-unread" class="text-xl font-bold text-slate-500 block">0</span>
+              <span class="text-[11px] text-slate-500">ยังไม่อ่าน</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Menu Action List -->
+        <div class="bg-white rounded-2xl border border-slate-100 shadow-sm divide-y divide-slate-100 overflow-hidden">
+          <button onclick="showToast('แก้ไขข้อมูลส่วนตัว')" class="w-full px-4 py-3.5 flex items-center justify-between text-left hover:bg-slate-50 transition-colors">
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 rounded-xl bg-indigo-50 text-brand-600 flex items-center justify-center">
+                <i data-lucide="edit-3" class="w-4 h-4"></i>
+              </div>
+              <span class="text-sm font-medium text-slate-700">แก้ไขข้อมูล</span>
+            </div>
+            <i data-lucide="chevron-right" class="w-4 h-4 text-slate-400"></i>
+          </button>
+
+          <button onclick="showToast('เปิดเมนูการตั้งค่า')" class="w-full px-4 py-3.5 flex items-center justify-between text-left hover:bg-slate-50 transition-colors">
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 rounded-xl bg-indigo-50 text-brand-600 flex items-center justify-center">
+                <i data-lucide="settings" class="w-4 h-4"></i>
+              </div>
+              <span class="text-sm font-medium text-slate-700">ตั้งค่าระบบ</span>
+            </div>
+            <i data-lucide="chevron-right" class="w-4 h-4 text-slate-400"></i>
+          </button>
+        </div>
+
+        <!-- Logout Button -->
+        <button onclick="showToast('ออกจากระบบเรียบร้อยแล้ว')" class="w-full bg-brand-900 hover:bg-black text-white font-medium py-3 rounded-2xl shadow transition-all active:scale-[0.98] flex items-center justify-center gap-2">
+          <i data-lucide="log-out" class="w-4 h-4"></i>
+          <span>ออกจากระบบ</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- Bottom Navigation Bar (Persistent on all screens) -->
+    <nav class="absolute bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200/80 px-6 py-2.5 z-40 flex items-center justify-between shadow-lg">
+      <!-- Home Tab -->
+      <button onclick="navigateTo('screen-home')" id="nav-btn-home" class="nav-item flex flex-col items-center gap-1 text-brand-600 transition-colors">
+        <i data-lucide="home" class="w-5 h-5"></i>
+        <span class="text-[10px] font-medium tracking-tight">หน้าแรก</span>
+      </button>
+
+      <!-- Search / Catalog Tab -->
+      <button onclick="navigateTo('screen-search')" id="nav-btn-search" class="nav-item flex flex-col items-center gap-1 text-slate-400 hover:text-slate-600 transition-colors">
+        <i data-lucide="folder-search" class="w-5 h-5"></i>
+        <span class="text-[10px] font-medium tracking-tight">คลัง</span>
+      </button>
+
+      <!-- Center Plus Action to go to Add Book (Page 03) -->
+      <button onclick="navigateTo('screen-add')" id="nav-btn-add" class="w-11 h-11 -mt-4 bg-gradient-to-tr from-brand-800 to-brand-500 rounded-full flex items-center justify-center text-white shadow-float hover:scale-105 active:scale-95 transition-all" title="เพิ่มรายการใหม่">
+        <i data-lucide="plus" class="w-6 h-6"></i>
+      </button>
+
+      <!-- Profile Tab -->
+      <button onclick="navigateTo('screen-profile')" id="nav-btn-profile" class="nav-item flex flex-col items-center gap-1 text-slate-400 hover:text-slate-600 transition-colors">
+        <i data-lucide="user" class="w-5 h-5"></i>
+        <span class="text-[10px] font-medium tracking-tight">โปรไฟล์</span>
+      </button>
+    </nav>
+
+    <!-- iOS style Home Indicator line -->
+    <div class="hidden sm:block absolute bottom-1 left-1/2 -translate-x-1/2 ios-home-indicator pointer-events-none z-50"></div>
+  </div>
+
+  <script>
+    /* ==========================================================================
+       Initial State & Sample Mockup Data
+       ========================================================================== */
+    const initialBooks = [
+      {
+        id: 'b1',
+        title: 'พื้นฐานการพัฒนาเว็บ',
+        category: 'ไอที',
+        author: 'อาจารย์สายไอที',
+        date: '2026-11-01',
+        status: 'อ่านแล้ว',
+        icon: 'code-2',
+        note: 'HTML, CSS, JavaScript เบื้องต้น และ Responsive Design'
+      },
+      {
+        id: 'b2',
+        title: 'การจัดการฐานข้อมูล',
+        category: 'ไอที',
+        author: 'ภาควิชาวิทยาการคอม',
+        date: '2026-10-25',
+        status: 'กำลังอ่าน',
+        icon: 'database',
+        note: 'SQL Normalization, ER-Diagram และ Relational Database'
+      },
+      {
+        id: 'b3',
+        title: 'ระบบเครือข่ายคอมพิวเตอร์',
+        category: 'ไอที',
+        author: 'วิศวกรรมเครือข่าย',
+        date: '2026-10-18',
+        status: 'ยังไม่อ่าน',
+        icon: 'network',
+        note: 'OSI 7 Layers, TCP/IP, IP Subnetting'
+      },
+      {
+        id: 'b4',
+        title: 'จิตวิทยาเพื่อการเติบโต',
+        category: 'พัฒนาตนเอง',
+        author: 'Carol Dweck',
+        date: '2026-09-12',
+        status: 'อ่านแล้ว',
+        icon: 'lightbulb',
+        note: 'Growth Mindset vs Fixed Mindset'
+      }
+    ];
+
+    // Local Storage or memory state
+    let books = JSON.parse(localStorage.getItem('booknest_books') || 'null') || initialBooks;
+    let selectedCategory = 'ทั้งหมด';
+    let currentEditingBookId = null;
+    let selectedCoverIcon = 'book';
+    let currentSelectedStatus = 'ยังไม่อ่าน';
+    let navigationHistory = ['screen-home'];
+
+    /* ==========================================================================
+       Core Navigation Logic
+       ========================================================================== */
+    function navigateTo(screenId, saveHistory = true) {
+      if (saveHistory && navigationHistory[navigationHistory.length - 1] !== screenId) {
+        navigationHistory.push(screenId);
+      }
+
+      // Hide all screens
+      document.querySelectorAll('.screen').forEach(screen => {
+        screen.classList.add('hidden');
       });
-      sel.onchange = function () { it.status = sel.value; save(); render(); };
-      var del = document.createElement("button");
-      del.className = "del"; del.textContent = "ลบ";
-      del.onclick = function () { items = items.filter(function (x) { return x.id !== it.id; }); save(); render(); };
-      act.appendChild(sel); act.appendChild(del);
 
-      li.appendChild(info); li.appendChild(act);
-      if (it.note) { var n = document.createElement("div"); n.className = "note"; n.textContent = "โน้ต: " + it.note; li.appendChild(n); }
-      list.appendChild(li);
-    });
-  }
+      // Show selected screen
+      const activeScreen = document.getElementById(screenId);
+      if (activeScreen) {
+        activeScreen.classList.remove('hidden');
+        activeScreen.scrollTop = 0;
+      }
 
-  document.getElementById("nav").addEventListener("click", function (e) {
-    var b = e.target.closest("button"); if (!b) return;
-    filter = b.dataset.filter;
-    document.querySelectorAll("#nav button").forEach(function (x) {
-      x.setAttribute("aria-current", x === b ? "true" : "false");
-    });
-    render();
-  });
-  document.getElementById("q").addEventListener("input", render);
-  document.getElementById("add").addEventListener("submit", function (e) {
-    e.preventDefault();
-    items.unshift({
-      id: Date.now(),
-      title: document.getElementById("title").value.trim(),
-      subject: document.getElementById("subject").value.trim(),
-      status: document.getElementById("status").value,
-      note: document.getElementById("note").value.trim()
-    });
-    save(); e.target.reset(); render();
-  });
+      // Update Nav active styling
+      updateNavHighlight(screenId);
 
-  load(); render();
-</script>
+      // Refresh contents if applicable
+      if (screenId === 'screen-home') {
+        renderHomeScreen();
+      } else if (screenId === 'screen-search') {
+        renderSearchScreen();
+      } else if (screenId === 'screen-profile') {
+        updateStats();
+      }
+
+      // Re-trigger lucide icons
+      lucide.createIcons();
+    }
+
+    function historyBack() {
+      if (navigationHistory.length > 1) {
+        navigationHistory.pop(); // Remove current
+        const prev = navigationHistory[navigationHistory.length - 1];
+        navigateTo(prev, false);
+      } else {
+        navigateTo('screen-home', false);
+      }
+    }
+
+    function updateNavHighlight(screenId) {
+      const homeBtn = document.getElementById('nav-btn-home');
+      const searchBtn = document.getElementById('nav-btn-search');
+      const profileBtn = document.getElementById('nav-btn-profile');
+
+      [homeBtn, searchBtn, profileBtn].forEach(btn => {
+        if (!btn) return;
+        btn.classList.remove('text-brand-600');
+        btn.classList.add('text-slate-400');
+      });
+
+      if (screenId === 'screen-home' && homeBtn) {
+        homeBtn.classList.add('text-brand-600');
+        homeBtn.classList.remove('text-slate-400');
+      } else if (screenId === 'screen-search' && searchBtn) {
+        searchBtn.classList.add('text-brand-600');
+        searchBtn.classList.remove('text-slate-400');
+      } else if (screenId === 'screen-profile' && profileBtn) {
+        profileBtn.classList.add('text-brand-600');
+        profileBtn.classList.remove('text-slate-400');
+      }
+    }
+
+    /* ==========================================================================
+       Data Synchronization & Stats
+       ========================================================================== */
+    function syncStorage() {
+      try {
+        localStorage.setItem('booknest_books', JSON.stringify(books));
+      } catch (e) {
+        console.error('Storage quota or error', e);
+      }
+      updateStats();
+    }
+
+    function updateStats() {
+      const total = books.length;
+      const finished = books.filter(b => b.status === 'อ่านแล้ว').length;
+      const reading = books.filter(b => b.status === 'กำลังอ่าน').length;
+      const unread = books.filter(b => b.status === 'ยังไม่อ่าน').length;
+
+      // Home Screen stats
+      document.getElementById('stat-total').innerText = total;
+      document.getElementById('stat-finished').innerText = finished;
+      document.getElementById('stat-reading').innerText = reading;
+
+      // Profile Screen stats
+      document.getElementById('prof-finished').innerText = finished;
+      document.getElementById('prof-reading').innerText = reading;
+      document.getElementById('prof-unread').innerText = unread;
+    }
+
+    /* ==========================================================================
+       Render Helpers
+       ========================================================================== */
+    function getStatusBadgeHtml(status) {
+      if (status === 'อ่านแล้ว') {
+        return `<span class="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-700">อ่านแล้ว</span>`;
+      } else if (status === 'กำลังอ่าน') {
+        return `<span class="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-700">กำลังอ่าน</span>`;
+      } else {
+        return `<span class="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-600">ยังไม่อ่าน</span>`;
+      }
+    }
+
+    function renderHomeScreen() {
+      updateStats();
+      const listContainer = document.getElementById('home-book-list');
+      listContainer.innerHTML = '';
+
+      if (books.length === 0) {
+        listContainer.innerHTML = `
+          <div class="text-center py-8 text-slate-400 text-sm">
+            ยังไม่มีหนังสือในคลัง แตะปุ่ม <b>+</b> เพื่อเริ่มเพิ่ม
+          </div>`;
+        return;
+      }
+
+      // Show top 5 latest
+      const recent = [...books].slice(-5).reverse();
+      recent.forEach(book => {
+        const item = document.createElement('div');
+        item.className = 'bg-white rounded-2xl p-3.5 shadow-card border border-slate-100 flex items-center justify-between cursor-pointer hover:border-brand-300 transition-all active:scale-[0.99]';
+        item.onclick = () => openBookDetail(book.id);
+
+        item.innerHTML = `
+          <div class="flex items-center gap-3 min-w-0">
+            <div class="w-12 h-12 rounded-xl bg-brand-900 text-white flex items-center justify-center shrink-0 shadow-sm">
+              <i data-lucide="${book.icon || 'book'}" class="w-6 h-6"></i>
+            </div>
+            <div class="min-w-0">
+              <h3 class="text-sm font-semibold text-slate-800 truncate">${escapeHtml(book.title)}</h3>
+              <p class="text-xs text-slate-400 truncate">${escapeHtml(book.category)} • ${escapeHtml(book.author || 'ไม่ระบุ')}</p>
+            </div>
+          </div>
+          <div class="shrink-0 flex items-center gap-2">
+            ${getStatusBadgeHtml(book.status)}
+            <i data-lucide="chevron-right" class="w-4 h-4 text-slate-300"></i>
+          </div>
+        `;
+        listContainer.appendChild(item);
+      });
+      lucide.createIcons();
+    }
+
+    function renderSearchScreen() {
+      const keyword = (document.getElementById('search-input').value || '').trim().toLowerCase();
+      const listContainer = document.getElementById('search-results-list');
+      listContainer.innerHTML = '';
+
+      let filtered = books.filter(b => {
+        const matchesCategory = selectedCategory === 'ทั้งหมด' || b.category === selectedCategory;
+        const matchesKeyword = !keyword || 
+          b.title.toLowerCase().includes(keyword) || 
+          (b.author && b.author.toLowerCase().includes(keyword)) ||
+          (b.note && b.note.toLowerCase().includes(keyword));
+        return matchesCategory && matchesKeyword;
+      });
+
+      document.getElementById('search-count').innerText = filtered.length;
+
+      if (filtered.length === 0) {
+        listContainer.innerHTML = `
+          <div class="text-center py-12 text-slate-400 text-sm">
+            <i data-lucide="search-x" class="w-10 h-10 mx-auto text-slate-300 mb-2"></i>
+            ไม่พบหนังสือที่ตรงกับคำค้นหา
+          </div>`;
+        lucide.createIcons();
+        return;
+      }
+
+      filtered.forEach(book => {
+        const card = document.createElement('div');
+        card.className = 'bg-white rounded-2xl p-3.5 shadow-card border border-slate-100 flex items-center justify-between cursor-pointer hover:border-brand-400 transition-all active:scale-[0.99]';
+        card.onclick = () => openBookDetail(book.id);
+
+        card.innerHTML = `
+          <div class="flex items-center gap-3 min-w-0">
+            <div class="w-12 h-12 rounded-xl bg-brand-700 text-white flex items-center justify-center shrink-0 shadow-sm">
+              <i data-lucide="${book.icon || 'book'}" class="w-6 h-6"></i>
+            </div>
+            <div class="min-w-0">
+              <h3 class="text-sm font-semibold text-slate-800 truncate">${escapeHtml(book.title)}</h3>
+              <p class="text-xs text-slate-400 truncate">${escapeHtml(book.category)} • ${escapeHtml(book.author || 'ไม่ระบุ')}</p>
+            </div>
+          </div>
+          <div class="shrink-0 flex items-center gap-2">
+            ${getStatusBadgeHtml(book.status)}
+            <i data-lucide="chevron-right" class="w-4 h-4 text-slate-300"></i>
+          </div>
+        `;
+        listContainer.appendChild(card);
+      });
+      lucide.createIcons();
+    }
+
+    function filterCategory(cat) {
+      selectedCategory = cat;
+      // Update UI pills
+      document.querySelectorAll('.cat-pill').forEach(pill => {
+        if (pill.innerText.trim() === cat) {
+          pill.className = 'cat-pill active px-4 py-1.5 rounded-full text-xs font-medium whitespace-nowrap bg-brand-600 text-white shadow-sm transition-all';
+        } else {
+          pill.className = 'cat-pill px-4 py-1.5 rounded-full text-xs font-medium whitespace-nowrap bg-white text-slate-600 border border-slate-200 hover:border-brand-500 transition-all';
+        }
+      });
+      renderSearchScreen();
+    }
+
+    function filterBooks() {
+      const val = document.getElementById('search-input').value;
+      const clearBtn = document.getElementById('clear-search');
+      if (val.length > 0) {
+        clearBtn.classList.remove('hidden');
+      } else {
+        clearBtn.classList.add('hidden');
+      }
+      renderSearchScreen();
+    }
+
+    function clearSearch() {
+      document.getElementById('search-input').value = '';
+      document.getElementById('clear-search').classList.add('hidden');
+      renderSearchScreen();
+    }
+
+    /* ==========================================================================
+       Screen 03: Add Book Logic
+       ========================================================================== */
+    function selectIconTrigger() {
+      const selector = document.getElementById('icon-selector');
+      selector.classList.toggle('hidden');
+    }
+
+    function chooseCoverIcon(iconName) {
+      selectedCoverIcon = iconName;
+      const preview = document.getElementById('cover-preview');
+      preview.innerHTML = `<i data-lucide="${iconName}" class="w-7 h-7"></i>`;
+      lucide.createIcons();
+      document.getElementById('icon-selector').classList.add('hidden');
+    }
+
+    function handleSaveNewBook() {
+      const titleInput = document.getElementById('form-title');
+      const categoryInput = document.getElementById('form-category');
+      const authorInput = document.getElementById('form-author');
+      const dateInput = document.getElementById('form-date');
+      const noteInput = document.getElementById('form-note');
+
+      const title = titleInput.value.trim();
+      if (!title) {
+        showToast('กรุณากรอกชื่อหนังสือ/วิชา');
+        titleInput.focus();
+        return;
+      }
+
+      const newBook = {
+        id: 'book_' + Date.now(),
+        title: title,
+        category: categoryInput.value || 'ทั่วไป',
+        author: authorInput.value.trim() || 'ไม่ระบุผู้แต่ง',
+        date: dateInput.value || new Date().toISOString().split('T')[0],
+        status: 'ยังไม่อ่าน',
+        icon: selectedCoverIcon || 'book',
+        note: noteInput.value.trim()
+      };
+
+      books.push(newBook);
+      syncStorage();
+
+      // Reset form
+      titleInput.value = '';
+      authorInput.value = '';
+      noteInput.value = '';
+      chooseCoverIcon('book');
+
+      showToast('เพิ่มหนังสือใหม่เรียบร้อยแล้ว!');
+      // Navigate to Search or Details
+      setTimeout(() => {
+        openBookDetail(newBook.id);
+      }, 300);
+    }
+
+    /* ==========================================================================
+       Screen 04: Book Details & Status
+       ========================================================================== */
+    function openBookDetail(bookId) {
+      const book = books.find(b => b.id === bookId);
+      if (!book) return;
+
+      currentEditingBookId = bookId;
+      currentSelectedStatus = book.status;
+
+      document.getElementById('detail-title').innerText = book.title;
+      document.getElementById('detail-author').innerText = book.author ? `ผู้แต่ง: ${book.author}` : 'ผู้แต่ง: ไม่ระบุ';
+      document.getElementById('detail-cat-badge').innerText = book.category;
+      document.getElementById('detail-date').innerText = book.date ? `เพิ่มเมื่อ ${book.date}` : '';
+      document.getElementById('detail-note').value = book.note || '';
+
+      // Update Icon
+      const iconWrap = document.getElementById('detail-icon-wrap');
+      iconWrap.innerHTML = `<i data-lucide="${book.icon || 'book'}" class="w-8 h-8"></i>`;
+
+      // Update active status buttons
+      highlightStatusButtons(book.status);
+
+      navigateTo('screen-detail');
+    }
+
+    function selectStatus(status) {
+      currentSelectedStatus = status;
+      highlightStatusButtons(status);
+    }
+
+    function highlightStatusButtons(status) {
+      const btnUnread = document.getElementById('btn-status-unread');
+      const btnReading = document.getElementById('btn-status-reading');
+      const btnFinished = document.getElementById('btn-status-finished');
+
+      // Reset
+      [btnUnread, btnReading, btnFinished].forEach(btn => {
+        btn.className = 'status-btn p-3 rounded-2xl border text-center flex flex-col items-center justify-center gap-1.5 transition-all bg-white border-slate-200 text-slate-600 hover:border-slate-300';
+      });
+
+      if (status === 'ยังไม่อ่าน') {
+        btnUnread.className = 'status-btn p-3 rounded-2xl border text-center flex flex-col items-center justify-center gap-1.5 transition-all bg-slate-100 border-slate-400 text-slate-800 font-bold ring-2 ring-slate-300';
+      } else if (status === 'กำลังอ่าน') {
+        btnReading.className = 'status-btn p-3 rounded-2xl border text-center flex flex-col items-center justify-center gap-1.5 transition-all bg-amber-50 border-amber-400 text-amber-800 font-bold ring-2 ring-amber-300';
+      } else if (status === 'อ่านแล้ว') {
+        btnFinished.className = 'status-btn p-3 rounded-2xl border text-center flex flex-col items-center justify-center gap-1.5 transition-all bg-emerald-50 border-emerald-500 text-emerald-800 font-bold ring-2 ring-emerald-300';
+      }
+    }
+
+    function handleUpdateBookStatus() {
+      if (!currentEditingBookId) return;
+
+      const book = books.find(b => b.id === currentEditingBookId);
+      if (book) {
+        book.status = currentSelectedStatus;
+        book.note = document.getElementById('detail-note').value.trim();
+        syncStorage();
+        showToast('อัปเดตสถานะหนังสือเรียบร้อย!');
+      }
+    }
+
+    function deleteCurrentBook() {
+      if (!currentEditingBookId) return;
+      books = books.filter(b => b.id !== currentEditingBookId);
+      syncStorage();
+      showToast('ลบรายการหนังสือแล้ว');
+      historyBack();
+    }
+
+    /* ==========================================================================
+       Toast Helper (Replaces alert)
+       ========================================================================== */
+    let toastTimeout;
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      const msgEl = document.getElementById('toast-message');
+      msgEl.innerText = msg;
+
+      clearTimeout(toastTimeout);
+      toast.classList.remove('opacity-0', '-translate-y-4', 'pointer-events-none');
+      toast.classList.add('opacity-100', 'translate-y-0');
+
+      toastTimeout = setTimeout(() => {
+        toast.classList.add('opacity-0', '-translate-y-4', 'pointer-events-none');
+        toast.classList.remove('opacity-100', 'translate-y-0');
+      }, 2300);
+    }
+
+    function escapeHtml(string) {
+      if (!string) return '';
+      return String(string)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    /* ==========================================================================
+       Initialization
+       ========================================================================== */
+    window.onload = function() {
+      // Set default date input to today
+      const today = new Date().toISOString().split('T')[0];
+      const dateEl = document.getElementById('form-date');
+      if (dateEl) dateEl.value = today;
+
+      // Render default view
+      renderHomeScreen();
+      lucide.createIcons();
+    };
+  </script>
 </body>
 </html>
